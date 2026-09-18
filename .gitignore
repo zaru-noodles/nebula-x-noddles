@@ -1,2 +1,8 @@
 .agents
 ~*.xlsx
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.cache/
