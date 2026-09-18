@@ -1,0 +1,11 @@
+{
+  "resid_mean_abs": 0.0004041732437808522,
+  "resid_persistent": 0.08270789208013714,
+  "resid_trend_slope": 0.04727365495601856,
+  "resid_time_above_thresh": 0.1008926714273211,
+  "target_offset_vs_peers": 0.38437468069877534,
+  "cooling_recovery_badness": 0.006810596853663043,
+  "running_mode_duty_dev": 0.06207311022677861,
+  "load_halved_duty_dev": 0.007682386619167805,
+  "missing_rate": 0.3077808338943575
+}
