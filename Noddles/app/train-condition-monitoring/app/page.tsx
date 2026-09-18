@@ -48,7 +48,7 @@ const subsystems: Subsystem[] = [
     task: "Locate refrigerant leak",
     description:
       "Rank every car from most to least likely to have a refrigerant leak.",
-    accepts: [".xlsx", ".xls", ".csv"],
+    accepts: [".xlsx"],
     signal: "Temperature and control-mode telemetry",
     color: "#08a6a6",
   },
@@ -59,7 +59,7 @@ const subsystems: Subsystem[] = [
     task: "Classify rail wear",
     description:
       "Classify vibration records as Normal, Side I or Side II corrugation.",
-    accepts: [".csv", ".txt"],
+    accepts: [".csv"],
     signal: "Multi-channel axle-box vibration and shock",
     color: "#7857d6",
   },
@@ -70,7 +70,7 @@ const subsystems: Subsystem[] = [
     task: "Estimate fatigue damage",
     description:
       "Estimate cumulative fatigue damage from dynamic stress time-series data.",
-    accepts: [".csv", ".txt"],
+    accepts: [".csv"],
     signal: "Dynamic stress time series",
     color: "#df6b32",
   },
@@ -207,8 +207,11 @@ export default function Home() {
         fetch("/api/predict", { method: "POST", body: formData }),
         new Promise((resolve) => setTimeout(resolve, 1050)),
       ]);
-      if (!response.ok) throw new Error("The analysis service could not process this file.");
-      setResult((await response.json()) as PredictionResponse);
+      const responseBody = await response.json() as PredictionResponse & { error?: string };
+      if (!response.ok) {
+        throw new Error(responseBody.error || "The analysis service could not process this file.");
+      }
+      setResult(responseBody);
       setStatus("complete");
     } catch (requestError) {
       setStatus("idle");
@@ -402,6 +405,8 @@ function ResultPanel({
         <div><h2>Analysis complete</h2><p>{result.rows.length} {result.rows.length === 1 ? "prediction" : "predictions"} ready to download.</p></div>
       </div>
 
+      <ResultSummary result={result} />
+
       <div className="results-table-wrap">
         <div className="table-heading"><div><h2>Prediction result</h2><p>{result.outputFilename}</p></div><span>{result.rows.length} rows</span></div>
         <div className="table-scroll">
@@ -429,6 +434,44 @@ function ResultPanel({
         <button className="secondary-button" onClick={onReset}><Icon name="reset" size={18} />New analysis</button>
         <button className="primary-button" onClick={onDownload}><Icon name="download" size={18} />Download CSV</button>
       </div>
+    </div>
+  );
+}
+
+function ResultSummary({ result }: { result: PredictionResponse }) {
+  if (result.subsystem === "door") {
+    const abnormal = result.rows.filter((row) => row.prediction === "Abnormal resistance").length;
+    return (
+      <div className="result-summary">
+        <div className="summary-primary"><span>Detected cycles</span><strong>{result.rows.length}</strong><small>Timestamp-gap segmentation</small></div>
+        <div className="summary-secondary"><span>Abnormal resistance</span><strong>{abnormal}</strong><small>{result.rows.length - abnormal} cycles classified normal</small></div>
+      </div>
+    );
+  }
+  if (result.subsystem === "acv") {
+    const topCars = result.rows.map((row) => String(row.ranked_cars).split("|")[0]);
+    return (
+      <div className="result-summary">
+        <div className="summary-primary"><span>Cases ranked</span><strong>{result.rows.length}</strong><small>Peer-relative anomaly analysis</small></div>
+        <div className="summary-secondary"><span>Highest-risk car</span><strong>{topCars[0] ?? "—"}</strong><small>{result.rows.length === 1 ? "First in the complete car ranking" : "Shown for the first uploaded case"}</small></div>
+      </div>
+    );
+  }
+  if (result.subsystem === "rail") {
+    const faults = result.rows.filter((row) => row.prediction !== "Normal").length;
+    return (
+      <div className="result-summary">
+        <div className="summary-primary"><span>Recordings analysed</span><strong>{result.rows.length}</strong><small>Speed-normalised side comparison</small></div>
+        <div className="summary-secondary"><span>Corrugation flags</span><strong>{faults}</strong><small>Side I or Side II predictions</small></div>
+      </div>
+    );
+  }
+  const values = result.rows.map((row) => Number(row.prediction)).filter(Number.isFinite);
+  const maximum = values.length ? Math.max(...values) : 0;
+  return (
+    <div className="result-summary">
+      <div className="summary-primary"><span>Stress records analysed</span><strong>{result.rows.length}</strong><small>Rainflow-informed fatigue model</small></div>
+      <div className="summary-secondary"><span>Highest predicted damage</span><strong>{maximum.toPrecision(4)}</strong><small>Cumulative fatigue damage</small></div>
     </div>
   );
 }
