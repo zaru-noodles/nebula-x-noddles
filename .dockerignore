@@ -1,0 +1,13 @@
+.git
+.agents
+.codex
+PS3
+**/.next
+**/node_modules
+**/__pycache__
+**/*.pyc
+**/.cache
+**/*.ipynb
+**/evaluate.py
+Noddles/predictions.zip
+*.log
