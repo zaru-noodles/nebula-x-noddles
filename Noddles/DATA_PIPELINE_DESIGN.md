@@ -109,7 +109,7 @@ The current health check proves that the four `predict.py` files are mounted. It
 
 ### 4.2 Production container
 
-The root `Dockerfile` creates one image containing both application layers:
+`Noddles/app/Dockerfile` creates one image containing both application layers:
 
 ```text
 Node.js standalone server
@@ -135,16 +135,17 @@ The deployment target is Google Cloud Run in `asia-southeast1` by default. The P
 
 1. Selects the Google Cloud project.
 2. Enables the Cloud Run, Cloud Build, and Artifact Registry APIs.
-3. Sends the repository source to Cloud Build.
-4. Builds the root Dockerfile and stores the resulting container image.
-5. Deploys the image as a public Cloud Run service.
-6. Reads and prints the service URL and its `/api/health` URL.
+3. Creates the service's Docker repository in Artifact Registry when it does not yet exist.
+4. Sends `Noddles` to Cloud Build using `app/cloudbuild.yaml` and `app/.gcloudignore`.
+5. Builds `app/Dockerfile` and stores the resulting container image in Artifact Registry.
+6. Deploys the image as a public Cloud Run service.
+7. Reads and prints the service URL and its `/api/health` URL.
 
 The deployed service is configured with 2 vCPU, 2 GiB of memory, a ten-minute HTTP timeout, container concurrency of one, and at most eight instances. Concurrency one is a deliberate data-pipeline choice: a large Rail FFT or SHM series cannot compete with another heavy request for memory and CPU inside the same container. Cloud Run provides horizontal scaling by starting separate container instances when requests overlap.
 
 ```mermaid
 flowchart LR
-    A[Developer repository] -->|gcloud run deploy --source| B[Cloud Build]
+    A[Noddles build context] -->|gcloud builds submit| B[Cloud Build]
     B --> C[Container image]
     C --> D[Artifact Registry]
     D --> E[Cloud Run instances]
@@ -157,7 +158,7 @@ Cloud Build is part of deployment, not the sensor-data path. At runtime, uploade
 
 For a cloud release, the expected verification sequence is:
 
-1. Deploy with `scripts/deploy-gcp.ps1 -ProjectId <project>`.
+1. From `Noddles/app`, deploy with `scripts/deploy-gcp.ps1 -ProjectId <project>`.
 2. Check the printed `/api/health` endpoint.
 3. Run one small known input through each subsystem.
 4. Confirm the displayed result and downloaded CSV schema.
@@ -433,5 +434,6 @@ Tests should follow the pipeline boundaries rather than only testing final predi
 - ACV features and ranking: [`Optional_Items/ACV/code/acv_pipeline.py`](Optional_Items/ACV/code/acv_pipeline.py)
 - Rail features and inference: [`Optional_Items/Rail Corrugation/code/rail_pipeline.py`](Optional_Items/Rail%20Corrugation/code/rail_pipeline.py)
 - SHM features and inference: [`Optional_Items/SHM/code/shm_pipeline.py`](Optional_Items/SHM/code/shm_pipeline.py)
-- Deployment container: [`../Dockerfile`](../Dockerfile)
-- Google Cloud deployment script: [`../scripts/deploy-gcp.ps1`](../scripts/deploy-gcp.ps1)
+- Deployment container: [`app/Dockerfile`](app/Dockerfile)
+- Cloud Build configuration: [`app/cloudbuild.yaml`](app/cloudbuild.yaml)
+- Google Cloud deployment script: [`app/scripts/deploy-gcp.ps1`](app/scripts/deploy-gcp.ps1)

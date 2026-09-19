@@ -1,0 +1,15 @@
+.gcloudignore
+.git
+.gitignore
+.agents
+.codex
+**/.next
+**/node_modules
+**/__pycache__
+**/*.pyc
+**/.cache
+**/*.ipynb
+**/evaluate.py
+predictions.zip
+*.log
+
