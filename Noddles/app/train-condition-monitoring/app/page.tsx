@@ -135,6 +135,33 @@ function toCsv(result: PredictionResponse) {
   ].join("\n");
 }
 
+async function requestPrediction(subsystem: SubsystemId, batch: File[]) {
+  const formData = new FormData();
+  formData.set("subsystem", subsystem);
+  batch.forEach((file) => formData.append("files", file));
+
+  const response = await fetch("/api/predict", { method: "POST", body: formData });
+  const responseText = await response.text();
+  let responseBody: (PredictionResponse & { error?: string }) | undefined;
+
+  if (response.headers.get("content-type")?.includes("application/json")) {
+    try {
+      responseBody = JSON.parse(responseText) as PredictionResponse & { error?: string };
+    } catch {
+      // Fall through to the readable gateway error below.
+    }
+  }
+
+  if (!response.ok) {
+    const message = response.status === 413
+      ? "This file is larger than Cloud Run's upload limit. Use a file smaller than 32 MB."
+      : responseBody?.error || `The analysis service returned HTTP ${response.status}.`;
+    throw new Error(message);
+  }
+  if (!responseBody) throw new Error("The analysis service returned an unreadable response.");
+  return responseBody;
+}
+
 export default function Home() {
   const [selectedId, setSelectedId] = useState<SubsystemId>("door");
   const [files, setFiles] = useState<File[]>([]);
@@ -198,19 +225,27 @@ export default function Home() {
     if (!files.length) return;
     setStatus("processing");
     setError("");
-    const formData = new FormData();
-    formData.set("subsystem", selectedId);
-    files.forEach((file) => formData.append("files", file));
 
     try {
-      const [response] = await Promise.all([
-        fetch("/api/predict", { method: "POST", body: formData }),
+      const [responseBody] = await Promise.all([
+        (async () => {
+          let combined: PredictionResponse | undefined;
+          for (const file of files) {
+            const prediction = await requestPrediction(selectedId, [file]);
+            if (!combined) {
+              combined = { ...prediction, rows: [...prediction.rows] };
+            } else {
+              if (prediction.columns.join("\u0000") !== combined.columns.join("\u0000")) {
+                throw new Error("The analysis service returned inconsistent result columns.");
+              }
+              combined.rows.push(...prediction.rows);
+            }
+          }
+          if (!combined) throw new Error("No files were analysed.");
+          return combined;
+        })(),
         new Promise((resolve) => setTimeout(resolve, 1050)),
       ]);
-      const responseBody = await response.json() as PredictionResponse & { error?: string };
-      if (!response.ok) {
-        throw new Error(responseBody.error || "The analysis service could not process this file.");
-      }
       setResult(responseBody);
       setStatus("complete");
     } catch (requestError) {

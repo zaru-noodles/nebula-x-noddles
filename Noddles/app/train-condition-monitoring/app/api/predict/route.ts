@@ -118,7 +118,10 @@ export async function POST(request: Request) {
       await writeFile(path.join(inputDirectory, names[index]), Buffer.from(await file.arrayBuffer()));
     }));
 
-    const modelRoot = path.resolve(process.cwd(), "..", "..", "Optional_Items", config.directory);
+    const optionalItemsRoot = process.env.MODEL_ROOT
+      ? path.resolve(process.env.MODEL_ROOT)
+      : path.resolve(process.cwd(), "..", "..", "Optional_Items");
+    const modelRoot = path.join(/*turbopackIgnore: true*/ optionalItemsRoot, config.directory);
     const script = path.join(modelRoot, "code", "predict.py");
     const output = path.join(/*turbopackIgnore: true*/ workingDirectory, config.outputFilename);
     const input = subsystemValue === "door" ? path.join(inputDirectory, names[0]) : inputDirectory;

@@ -1,7 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Produce the minimal Node.js server used by the production container.
+  output: "standalone",
 };
 
 export default nextConfig;
